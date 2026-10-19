@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+  <body>
+    <input />
+    <button id="send">Send</button>
+
+    <script>
+      const socket = new WebSocket("ws://localhost:3002");
+
+      socket.onopen = () => {
+        console.log("Connected");
+      };
+
+      socket.onmessage = (event) => {
+        console.log(event.data);
+      };
+
+      document.getElementById("send").onclick = () => {
+        socket.send("Hello Server");
+      };
+    </script>
+  </body>
+</html>
