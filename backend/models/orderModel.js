@@ -12,7 +12,22 @@ const ordersSchema = new Schema({
     product: {
         type: Schema.Types.ObjectId,
         ref: 'Product',
-        required: [true, "Product is required"],
+        required: false,
+    },
+    items: [{
+        product: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
+        quantity: { type: Number, required: true, min: 1 },
+        priceAtOrder: { type: Number, required: true, min: 0 },
+    }],
+    razorpayOrderId: {
+        type: String,
+        required: true,
+        unique: true,
+    },
+    razorpayPaymentId: {
+        type: String,
+        required: true,
+        unique: true,
     },
     user: {
         type: Schema.Types.ObjectId,
@@ -23,16 +38,6 @@ const ordersSchema = new Schema({
         type: String,
         enum: ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'],
         default: 'pending',
-    },
-    razorpayOrderId: {
-        type: String,
-        required: true,
-        unique: true,
-    },
-    razorpayPaymentId: {
-        type: String,
-        required: true,
-        unique: true,
     },
 })
 

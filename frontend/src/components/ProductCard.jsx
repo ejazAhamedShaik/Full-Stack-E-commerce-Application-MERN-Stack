@@ -1,7 +1,7 @@
 /* eslint-disable react/prop-types */
 import { useCart } from '../context/CartContext';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE_URL } from '../api';
+import { API_BASE_URL, apiFetch } from '../api';
 import './ProductCard.css';
 
 const ProductCard = ({ product }) => {
@@ -14,9 +14,8 @@ const ProductCard = ({ product }) => {
   };
 
   const handleBuyNow = () => {
-    fetch(`${API_BASE_URL}/order/${product._id}`, {
+    apiFetch(`${API_BASE_URL}/order/${product._id}`, {
       method: 'POST',
-      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -36,7 +35,7 @@ const ProductCard = ({ product }) => {
         }
         // Redirect to Razorpay checkout page with order id from response
         const options = {
-          key: 'rzp_test_vgdcvfBacMw9KC', // your test key
+          key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_vgdcvfBacMw9KC',
           amount: order.amount,
           currency: order.currency,
           name: 'My Ecommerce Store',
@@ -44,9 +43,8 @@ const ProductCard = ({ product }) => {
           order_id: order.id,
           handler: function (response) {
             // Call /api/order/verify endpoint with POST method and body as response from Razorpay
-            fetch(`${API_BASE_URL}/order/verify`, {
+            apiFetch(`${API_BASE_URL}/order/verify`, {
               method: 'POST',
-              credentials: 'include',
               headers: {
                 'Content-Type': 'application/json',
               },

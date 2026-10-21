@@ -16,17 +16,28 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for stored user session on mount
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error('Error parsing stored user:', error);
+    let active = true;
+    const restoreSession = async () => {
+      if (!localStorage.getItem('token')) {
         localStorage.removeItem('user');
+        setLoading(false);
+        return;
       }
-    }
-    setLoading(false);
+      try {
+        const data = await api.getSession();
+        if (active) {
+          setUser(data.user);
+          localStorage.setItem('user', JSON.stringify(data.user));
+        }
+      } catch {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    restoreSession();
+    return () => { active = false; };
   }, []);
 
   const login = async (credentials) => {

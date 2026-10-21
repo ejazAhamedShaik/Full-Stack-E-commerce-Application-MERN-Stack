@@ -6,7 +6,20 @@ if (import.meta.env.PROD && !configuredApiUrl) {
 
 export const API_BASE_URL = (configuredApiUrl || 'http://localhost:3000/api').replace(/\/$/, '');
 
+export function apiFetch(url, options = {}) {
+  const token = localStorage.getItem('token');
+  const headers = new Headers(options.headers || {});
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  return fetch(url, { ...options, headers, credentials: 'include' });
+}
+
 export const api = {
+  async getSession() {
+    const response = await apiFetch(`${API_BASE_URL}/auth/session`);
+    if (!response.ok) throw new Error('Session expired');
+    return response.json();
+  },
+
   // Fetch all products with optional query parameters
   async fetchProducts(params = {}) {
     try {
@@ -28,9 +41,7 @@ export const api = {
       }
       
       const url = `${API_BASE_URL}/product${queryString.toString() ? '?' + queryString.toString() : ''}`;
-      const response = await fetch(url, {
-        credentials: 'include'
-      });
+      const response = await apiFetch(url);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -47,9 +58,7 @@ export const api = {
   // Fetch a single product by ID
   async fetchProductById(id) {
     try {
-      const response = await fetch(`${API_BASE_URL}/product/${id}`, {
-        credentials: 'include'
-      });
+      const response = await apiFetch(`${API_BASE_URL}/product/${id}`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -65,9 +74,7 @@ export const api = {
 
   // Fetch reviews for a product
   async fetchReviews(productId) {
-    const response = await fetch(`${API_BASE_URL}/review?product=${encodeURIComponent(productId)}`, {
-      credentials: 'include'
-    });
+    const response = await apiFetch(`${API_BASE_URL}/review?product=${encodeURIComponent(productId)}`);
     const data = await response.json();
     if (!response.ok) {
       throw new Error(data.message || `Unable to load reviews (${response.status})`);
@@ -77,10 +84,9 @@ export const api = {
 
   // Add a review for a product
   async addReview(productId, review) {
-    const response = await fetch(`${API_BASE_URL}/review`, {
+    const response = await apiFetch(`${API_BASE_URL}/review`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({ ...review, product: productId }),
     });
     const data = await response.json();
@@ -95,13 +101,12 @@ export const api = {
   // Signup - Create new user account
   async signup(userData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+      const response = await apiFetch(`${API_BASE_URL}/auth/signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(userData),
-        credentials: 'include'
       });
       
       const data = await response.json();
@@ -120,13 +125,12 @@ export const api = {
   // Login - Authenticate user
   async login(credentials) {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const response = await apiFetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(credentials),
-        credentials: 'include'
       });
       
       const data = await response.json();
@@ -134,6 +138,7 @@ export const api = {
       if (!response.ok) {
         throw new Error(data.message || `HTTP error! status: ${response.status}`);
       }
+      if (data.token) localStorage.setItem('token', data.token);
       
       return data;
     } catch (error) {
@@ -145,13 +150,12 @@ export const api = {
   // Forgot Password - Request OTP for password reset
   async forgotPassword(email) {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/forgotPassword`, {
+      const response = await apiFetch(`${API_BASE_URL}/auth/forgotPassword`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email }),
-        credentials: 'include'
       });
       
       const data = await response.json();
@@ -170,13 +174,12 @@ export const api = {
   // Reset Password - Reset password with OTP
   async resetPassword(userId, resetData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/resetPassword/${userId}`, {
+      const response = await apiFetch(`${API_BASE_URL}/auth/resetPassword/${userId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(resetData),
-        credentials: 'include'
       });
       
       const data = await response.json();
@@ -195,9 +198,8 @@ export const api = {
   // Logout - End user session
   async logout() {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/logout`, {
+      const response = await apiFetch(`${API_BASE_URL}/auth/logout`, {
         method: 'GET',
-        credentials: 'include'
       });
       
       const data = await response.json();

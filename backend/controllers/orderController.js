@@ -36,7 +36,7 @@ async function verifyPayment(req, res) {
 
     // Make a repeated client callback idempotent rather than creating a duplicate.
     const existingOrder = await Order.findOne({ razorpayOrderId });
-    if (existingOrder) {
+    if (existingOrder && existingOrder.status !== "pending") {
       if (existingOrder.user.toString() !== req.user._id.toString()) {
         return res.status(403).json({ message: "Order does not belong to this user" });
       }
@@ -49,24 +49,31 @@ async function verifyPayment(req, res) {
 
     // Fetch Razorpay's order metadata; never trust client-provided price/product.
     const razorpayOrder = await razorpay.orders.fetch(razorpayOrderId);
-    const { productId, userId } = razorpayOrder.notes || {};
-    if (!productId || userId !== req.user._id.toString()) {
+    const { productId, orderId, userId } = razorpayOrder.notes || {};
+    if ((!productId && !orderId) || userId !== req.user._id.toString()) {
       return res.status(400).json({ message: "Invalid Razorpay order metadata" });
     }
 
-    const product = await Product.findById(productId);
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-
-    const order = await Order.create({
+    let orderData = {
       user: req.user._id,
-      product: product._id,
       priceAtOrder: razorpayOrder.amount / 100,
       status: "confirmed",
       razorpayOrderId,
       razorpayPaymentId,
-    });
+    };
+    if (orderId) {
+      const pendingOrder = await Order.findOne({ _id: orderId, user: req.user._id, status: "pending" });
+      if (!pendingOrder) return res.status(400).json({ message: "Cart order not found" });
+      pendingOrder.status = "confirmed";
+      pendingOrder.razorpayPaymentId = razorpayPaymentId;
+      await pendingOrder.save();
+      orderData = null;
+    } else {
+      const product = await Product.findById(productId);
+      if (!product) return res.status(404).json({ message: "Product not found" });
+      orderData.product = product._id;
+    }
+    const order = orderData ? await Order.create(orderData) : await Order.findOne({ _id: orderId });
 
     return res.status(201).json({
       message: "Payment verified and order created successfully",
@@ -109,9 +116,56 @@ async function createRazorpayOrder(req, res) {
   }
 }
 
+async function createCartRazorpayOrder(req, res) {
+  try {
+    const requestedItems = req.body.items;
+    if (!Array.isArray(requestedItems) || requestedItems.length === 0) {
+      return res.status(400).json({ message: "Cart is empty" });
+    }
+    const normalized = new Map();
+    for (const item of requestedItems) {
+      const id = String(item.productId || "");
+      const quantity = Number(item.quantity);
+      if (!/^[a-f\d]{24}$/i.test(id) || !Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
+        return res.status(400).json({ message: "Invalid cart item" });
+      }
+      normalized.set(id, (normalized.get(id) || 0) + quantity);
+    }
+    const products = await Product.find({ _id: { $in: [...normalized.keys()] } });
+    if (products.length !== normalized.size) return res.status(400).json({ message: "A cart product is unavailable" });
+    const items = products.map((product) => {
+      const quantity = normalized.get(product._id.toString());
+      if (product.stock < quantity) throw new Error(`${product.productName} does not have enough stock`);
+      return { product: product._id.toString(), quantity, priceAtOrder: product.price };
+    });
+    const amount = items.reduce((sum, item) => sum + item.priceAtOrder * item.quantity, 0);
+    const pendingOrder = await Order.create({
+      user: req.user._id,
+      items,
+      priceAtOrder: amount,
+      status: "pending",
+      razorpayOrderId: `pending_${Date.now()}_${req.user._id}`,
+      razorpayPaymentId: `pending_${Date.now()}_${req.user._id}`,
+    });
+    const razorpayOrder = await razorpay.orders.create({
+      amount: Math.round(amount * 100),
+      currency: "INR",
+      receipt: `cart_${Date.now()}`,
+      notes: { userId: req.user._id.toString(), orderId: pendingOrder._id.toString() },
+    });
+    pendingOrder.razorpayOrderId = razorpayOrder.id;
+    await pendingOrder.save();
+    return res.status(201).json({ message: "Cart order created", razorpayOrder });
+  } catch (error) {
+    return res.status(400).json({ message: error.message || "Unable to create cart order" });
+  }
+}
+
 async function getUserOrders(req, res) {
   try {
-    const orders = await Order.find({ user: req.user._id });
+    const orders = await Order.find({ user: req.user._id })
+      .populate("product", "productName")
+      .populate("items.product", "productName");
     return res.status(200).json({ message: "Orders fetched successfully", orders });
   } catch (error) {
     console.error("Fetching orders failed:", error);
@@ -119,4 +173,4 @@ async function getUserOrders(req, res) {
   }
 }
 
-export { verifyPayment, createRazorpayOrder, getUserOrders };
+export { verifyPayment, createRazorpayOrder, createCartRazorpayOrder, getUserOrders };

@@ -5,7 +5,8 @@ import jwt from "jsonwebtoken";
 
 const protectRoute = async (req, res, next) => {
   try {
-    const token = req.cookies.token;
+    const authHeader = req.headers.authorization;
+    const token = (authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null) || req.cookies.token;
     if (!token) {
       return res.status(401).send({ message: "Unauthorized" });
     }
@@ -77,13 +78,13 @@ const loginHandler = async (req, res) => {
         res.cookie("token", token, {
           maxAge: 1000 * 60 * 60 * 24,
           httpOnly: true,
-          // Frontend and API both run on localhost, so Lax cookies are sent
-          // with credentialed fetch requests without requiring HTTPS.
-          sameSite: "lax",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+          secure: process.env.NODE_ENV === "production",
         });
         res.status(200).send({
           message: "Login Successful",
           data: user,
+          token,
         });
       } else {
         res.status(400).json({
@@ -173,7 +174,10 @@ const resetPasswordHandler = async (req, res, next) => {
 
 const logoutHandler = async (req, res) => {
   try {
-    res.clearCookie("token", { sameSite: "lax" });
+    res.clearCookie("token", {
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
     res.status(200).send({
       message: "Logged out successfully",
     });

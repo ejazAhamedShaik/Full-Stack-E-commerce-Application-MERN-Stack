@@ -1,7 +1,7 @@
 import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
 import CartItem from "../components/CartItem";
-import { API_BASE_URL } from "../api";
+import { API_BASE_URL, apiFetch } from "../api";
 import "./CartPage.css";
 
 const CartPage = () => {
@@ -30,51 +30,37 @@ const CartPage = () => {
   }
 
   const checkout = () => {
-    const payload = {
-      items: cartItems.map((item) => ({
-        productId: item._id,
-        title: item.title,
-        price: item.price,
-        quantity: item.quantity,
-      })),
-      priceAtBooking: total,
-      user: {
-        name: "Ejaz",
-        email: "example@gmail.com",
-        contact: "9999999999",
-      },
-    };
-
-    // This endpoint is not part of the current backend API; this flow needs a cart-order endpoint.
-    fetch(`${API_BASE_URL}/checkout`, {
+    apiFetch(`${API_BASE_URL}/order/cart`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload), // Replace with actual cart items and price
+      body: JSON.stringify({ items: cartItems.map(({ _id, quantity }) => ({ productId: _id, quantity })) }),
     })
-      .then((response) => response.json())
-      .then((data) => {
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || `Checkout failed (${response.status})`);
+        return data;
+      })
+      .then(({ razorpayOrder }) => {
         const options = {
-          key: "rzp_test_vgdcvfBacMw9KC", // your test key
-          amount: data.order.amount,
-          currency: data.order.currency,
+          key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_vgdcvfBacMw9KC",
+          amount: razorpayOrder.amount,
+          currency: razorpayOrder.currency,
           name: "My Ecommerce Store",
-          description: "Test Transaction",
-          order_id: data.order.id,
-
-          handler: function (response) {
-            console.log("Payment Success");
-
-            console.log(response);
+          description: "Cart checkout",
+          order_id: razorpayOrder.id,
+          handler: async (payment) => {
+            const response = await apiFetch(`${API_BASE_URL}/order/verify`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payment),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || "Payment verification failed");
+            clearCart();
+            window.alert("Payment successful! Your order is confirmed.");
           },
-
-          prefill: {
-            name: "Ejaz",
-            email: "example@gmail.com",
-            contact: "9999999999",
-          },
-
           theme: {
             color: "#3399cc",
           },
@@ -86,6 +72,7 @@ const CartPage = () => {
       })
       .catch((error) => {
         console.error("Error during checkout:", error);
+        window.alert(error.message || "Unable to start checkout");
       });
   };
   return (
