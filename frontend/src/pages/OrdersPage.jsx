@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { API_BASE_URL } from "../api";
 
 const OrdersPage = () => {
   const [orders, setOrders] = useState([]);
@@ -10,7 +11,7 @@ const OrdersPage = () => {
 
     const fetchOrders = async () => {
       try {
-        const response = await fetch("http://localhost:3000/api/orders", {
+        const response = await fetch(`${API_BASE_URL}/order`, {
           credentials: "include",
           signal: controller.signal,
         });

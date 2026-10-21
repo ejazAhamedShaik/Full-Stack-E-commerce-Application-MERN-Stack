@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 import { useCart } from '../context/CartContext';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../api';
 import './ProductCard.css';
 
 const ProductCard = ({ product }) => {
@@ -13,7 +14,7 @@ const ProductCard = ({ product }) => {
   };
 
   const handleBuyNow = () => {
-    fetch(`http://localhost:3000/api/order/${product._id}`, {
+    fetch(`${API_BASE_URL}/order/${product._id}`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -43,7 +44,7 @@ const ProductCard = ({ product }) => {
           order_id: order.id,
           handler: function (response) {
             // Call /api/order/verify endpoint with POST method and body as response from Razorpay
-            fetch('http://localhost:3000/api/order/verify', {
+            fetch(`${API_BASE_URL}/order/verify`, {
               method: 'POST',
               credentials: 'include',
               headers: {

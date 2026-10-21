@@ -1,6 +1,7 @@
 import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
 import CartItem from "../components/CartItem";
+import { API_BASE_URL } from "../api";
 import "./CartPage.css";
 
 const CartPage = () => {
@@ -44,8 +45,8 @@ const CartPage = () => {
       },
     };
 
-    // Call checkout api at localhost:3000/checkout endpoint with POST method and body as cart items from context
-    fetch("http://localhost:3000/checkout", {
+    // This endpoint is not part of the current backend API; this flow needs a cart-order endpoint.
+    fetch(`${API_BASE_URL}/checkout`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
