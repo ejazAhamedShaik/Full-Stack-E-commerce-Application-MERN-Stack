@@ -33,7 +33,7 @@ const db = process.env.DB_URL;
 
 /** Middlewares */
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174'],
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'https://full-stack-e-commerce-application-m.vercel.app/'],
   credentials: true
 }));
 app.use(json());
