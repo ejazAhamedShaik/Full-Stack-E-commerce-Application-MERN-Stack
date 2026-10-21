@@ -23,19 +23,25 @@ const app = express();
 const limiter = {
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
-  standardHeaders: 'draft-8', // Return rate limit info in the `RateLimit-*` headers
+  standardHeaders: "draft-8", // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   ipv6Subnet: 56,
-}
+};
 
 const PORT = process.env.PORT || 3000;
 const db = process.env.DB_URL;
 
 /** Middlewares */
-app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'https://full-stack-e-commerce-application-m.vercel.app/'],
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "https://full-stack-e-commerce-application-m.vercel.app",
+    ],
+    credentials: true,
+  }),
+);
 app.use(json());
 app.use(cookieParser());
 app.use(rateLimiter(limiter));
@@ -46,18 +52,18 @@ app.get("/", homeHandler);
 
 /** User Routes */
 app.use("/api/user", userRouter);
-  
+
 /** Product Routes */
 app.use("/api/product", productRouter);
 
 /** Auth Router */
-app.use('/api/auth', authRouter);
+app.use("/api/auth", authRouter);
 
 /** Order Routes */
-app.use('/api/order', orderRouter);
+app.use("/api/order", orderRouter);
 
 /** Review Routes */
-app.use('/api/review', reviewRouter);
+app.use("/api/review", reviewRouter);
 
 /** Central error handling */
 app.use((err, req, res, next) => {
