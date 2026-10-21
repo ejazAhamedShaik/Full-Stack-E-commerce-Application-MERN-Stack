@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 import {rateLimiter} from "express-rate-limit";
-import {mongoSanitize} from "express-mongo-sanitize";
+import mongoSanitize from "express-mongo-sanitize";
 
 dotenv.config();
 
